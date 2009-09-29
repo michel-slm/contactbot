@@ -21,19 +21,32 @@ License along with Hircus ConnectBot.  If not, see
 
 from plugins import twitter
 import os, sys, time
-import msg_eval
+from msg_eval import MsgEval
+import datamodel
 
 t = twitter.Twitter()
+msg_eval = MsgEval(t)
 
-while True:
-    # check if there is a request
-    for m in t.get_messages():
-        print m['sender_screen_name'], m['text']
-        try:
-            result = msg_eval.eval(m)
-        except Exception as e:
-            result = str(type(e)) + ": " + str(e)
-        t.send_message(m['sender_screen_name'], result)
+try:
+    while True:
+        # check if there is a request
+        # reverse the list, due to reverse chronological order
+        # to make sure later commands overwrite earlier ones
+        for m in t.get_messages()[::-1]:
+            sys.stdout.write(m['sender_screen_name'] + ": " + m['text'] + "\n")
+            try:
+                result = msg_eval.eval(m)
+            except Exception as e:
+                result = str(type(e)) + ": " + str(e)
+            if result:
+                print result
+                t.send_message(m['sender_screen_name'], result)
+            else:
+                sys.stdout.write("Message processed silently.\n")
 
-    time.sleep(30)
+        time.sleep(30)
+
+except KeyboardInterrupt as e:
+    sys.stdout.write("Quitting\n")
+    msg_eval.quit()
 
